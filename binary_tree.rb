@@ -1,26 +1,28 @@
-
   class Node
-  	# i don't see the need for a parent link. the bfs and dfs store the parent
-    # info in the stack and queue, respectively.
-  	# i suppose the parent could be usefull in order to create a to_s function
-  	# for easier debugging.
-    # note that the visited field is not strictly necessary. it was included
-    # due to my first implementation for depth_first_search which used
-    # an implementation based on a graph data structure which could have
-    # loops, making it necessary to keep track of redundant node pushes.
-    attr_accessor :value, :visited, :parent, :left_child, :right_child
+    # parent is useful for backtracing up to root
+    # note that the visited field is useful for graphs where loops
+    # need to be identified.
+    attr_accessor :value, :visited, :parent, :children
 
     def initialize(args = {})
       @parent = args.fetch(:parent, nil)
       @visited = false
+      @children = []
     end
+
 
     def to_s
 	  str = ""
 	  str += "< Node: #{value} "
 	  str += parent.nil? ? "parent: Nil " : "parent: #{parent.value} "
-	  str += left_child.nil? ? "left_child: Nil " : "left_child: #{left_child.value} "
-	  str += right_child.nil? ? "right_child: Nil >\n" : "right_child: #{right_child.value} >\n"
+    children_str = ""
+    children_str += "Children : "
+    children.each_with_index do |child, i| 
+      child_value = (child.nil?) ? "Nil" : child.value
+      children_str << " Child #{i} = #{child_value}\n" 
+    end
+    children_str += ">\n"
+	  str += children.empty? ? "No children >\n\n" : children_str
 	  str
     end
 
@@ -49,12 +51,12 @@
           found = true          
         elsif new_value <= current.value
           # check left subtree if it exists
-          current.left_child = Node.new(:parent => current) if !current.left_child
-          current = current.left_child
+          current.children[0] = Node.new(:parent => current) if !current.children[0]
+          current = current.children[0]
         else
           # check right subtree if it exists
-          current.right_child = Node.new(:parent => current) if !current.right_child
-          current = current.right_child
+          current.children[1] = Node.new(:parent => current) if !current.children[1]
+          current = current.children[1]
         end # if current.value
         puts current if verbose
       end # while !found
@@ -72,49 +74,19 @@
         puts "current = #{current}"
         puts "head = #{next_node[0]}"
       end
-      return current if current.value == value      
-      next_node.push current.left_child if current.left_child
-      next_node.push current.right_child if current.right_child
+      # visited not strictly necessary for future proofs it
+      if current.visited == false
+        return current if current.value == value
+        current.children.each { |child| next_node.push child if child } 
+      end
     end
-    nil
-  end
-
-# this was my first implementation which after review appears very
-# suboptimal. This is because it uses a visited field for the Node 
-# object. The visited field makes sense for a graph data structure per
-# the video that was assigned but is not necessary for a bst since
-# the stack inherently provides this mechanism.
-  def depth_first_search(tree, value, args = {})
-    verbose = args.fetch(:verbose, false)
-    return nil if tree == nil
-    done = false
-    current = tree
-    next_node = []
-    while !done
-      next_node.push(current) unless current.visited
-      current.visited = true
-      if verbose
-        puts "current = #{current}"
-        puts "top_of_the_stack = #{next_node[-1]}"
-      end
-      if current.value == value
-        return current
-      elsif (current.left_child && !current.left_child.visited) # has a left child
-        current = current.left_child
-      elsif (current.right_child && !current.right_child.visited)
-        current = current.right_child
-      else
-        current = next_node.pop
-        done = current.nil?
-      end
-    end # while !done
     nil
   end
 
 # TODO - since depth_first and breadth_first look so alike now, i think
 # they should be merged into a common search function where I pass
 # in the pop or shift
-  def depth_first_search2(tree, value, args = {})
+  def depth_first_search(tree, value, args = {})
     verbose = args.fetch(:verbose, false)
     return nil if tree == nil
     next_node = [tree]
@@ -124,36 +96,45 @@
         puts "current = #{current}"
         puts "head = #{next_node[0]}"
       end
-      return current if current.value == value      
-      next_node.push current.left_child if current.left_child
-      next_node.push current.right_child if current.right_child
+      # visited not strictly necessary for future proofs it      
+      if current.visited == false
+        current.visited = true
+        return current if current.value == value
+        current.children.each { |child| next_node.push child if child } 
+      end
     end
     nil
   end
 
+#=begin THIS REALLY SHOULDN'T BE IN THE BASE CLASS. IN DERIVED CLASS
   def dfs_rec(tree, value, args = {})
     verbose = args.fetch(:verbose, false)
-    return nil if tree == nil
+    return nil if tree == nil 
+    return nil if tree.visited == true
+    tree.visited = true
     return tree if tree.value == value
     puts "current = #{tree}" if verbose
-    left = dfs_rec(tree.left_child, value, args)
+    left = dfs_rec(tree.children[0], value, args)
     return left if left != nil
-    right = dfs_rec(tree.right_child, value, args)
+    right = dfs_rec(tree.children[1], value, args)
     return right # if right != nil
   end
+#=end
 
-  #print build_tree([1, 2]).inspect #, 2, 3, 4, 5, 6, 7, 8])
   ary = [23, 7, 8, 4, 3, 5, 9, 67, 6345, 324]
-  tree = build_tree(ary, :verbose => true ) #, :random_draw => true)
+  #tree = build_tree(ary )#, :verbose => true ) #, :random_draw => true)
+  #puts "Build tree completed."
   
-  puts "Build tree completed."
-  #print breadth_first_search(tree, 324, :verbose => true)
-  #print depth_first_search(tree, 324, :verbose => true)
+  #puts "Breadth first search"
+  #print breadth_first_search(tree, 324 )#, :verbose => true)
  
-  puts "First"
-  print depth_first_search(tree, 4, :verbose => true)
-  puts "Second"
-  print depth_first_search2(tree, 4, :verbose => true)
+
+  ## NEED TO FULLY TRACE DEPTH
+  #tree = build_tree(ary ) #, :verbose => true ) #, :random_draw => true)
+  #puts "Depth first search"
+  #print depth_first_search(tree, 4 )#, :verbose => true)
+  
   puts "Recursive"
-  print dfs_rec(tree, 323, :verbose => true).inspect
+  tree = build_tree(ary ) #, :verbose => true ) #, :random_draw => true)  
+  print dfs_rec(tree, 324 )#, :verbose => true).inspect
 
